@@ -1,2 +1,2 @@
 # reinforcement_learning
-we'll compare between SARSA, q-learning, gradient-based-q-learning
+we'll compare SARSA, q-learning, gradient-based-q-learning on the windy cliff walking setup.
