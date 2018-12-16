@@ -2,3 +2,5 @@
 torch
 gym
 jupyter
+JSAnimation
+matplotlib
