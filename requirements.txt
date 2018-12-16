@@ -1,6 +1,0 @@
-#clone and install gym_minigrid?
-torch
-gym
-jupyter
-JSAnimation
-matplotlib
