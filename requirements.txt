@@ -1,5 +1,0 @@
-#clone and install JSAnimation
-torch
-gym
-jupyter
-matplotlib
