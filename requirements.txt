@@ -3,3 +3,4 @@ gym
 jupyter
 matplotlib
 JSAnimation
+PyQt5
