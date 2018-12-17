@@ -1,8 +1,10 @@
-# reinforcement_learning 
+# reinforcement_learning
+
 python3 -m venv direct_rl
+
 pip3 install -r requirements.txt
 
-
+./direct_rl/bin/jupyter notebook
 
 
 Windy cliff walking setup - a player walkes on the grid from starting point to end point. Wind -  each column has the probability of pushing the player towards the cliff.
