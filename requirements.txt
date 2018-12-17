@@ -1,5 +1,5 @@
-#clone and install JSAnimation: git clone https://github.com/jakevdp/JSAnimation.git
 torch
 gym
 jupyter
 matplotlib
+JSAnimation
