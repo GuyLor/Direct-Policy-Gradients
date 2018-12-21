@@ -8,8 +8,11 @@ pip3 install -r requirements.txt
 
 ./direct_rl/bin/jupyter notebook
 
+-------------------------------------
 to train from scratch:
+
   python run.py --train
 
 to play with the trained and saved model:
+
   python run.py --play --load_path policy_state_dicts_multiroom.pkl
