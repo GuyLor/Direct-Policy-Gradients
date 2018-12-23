@@ -45,7 +45,7 @@ class MinigridRL:
         return env
     def set_seed(self,seed):
         np.random.seed(seed)
-        #torch.manual_seed(seed)
+        torch.manual_seed(seed)
     def load_checkpoint(self,filepath=None):
         if filepath is not None:
             self.cp.load_path = filepath
