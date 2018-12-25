@@ -64,7 +64,7 @@ def main():
                         chekpoint=cp,
                         seed=args.seed,
                         discount=args.discount,
-                        max_steps=240)
+                        max_steps=args.max_steps)
 
     if args.train:
         m.train(num_episodes=args.episodes,seed=args.seed)

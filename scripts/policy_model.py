@@ -22,10 +22,9 @@ class Policy(nn.Module):
             nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(3, 3))           
         )
         self.fc = nn.Sequential(
-            
             nn.Linear(self.image_embedding_size+self.number_directions, action_space)
-
         )
+        self.log_softmax = nn.LogSoftmax(dim=-1)
 
     def forward(self,batch_obs):
         images = []
@@ -45,7 +44,7 @@ class Policy(nn.Module):
         x = x.view(x.size(0), -1)
         image_direction = torch.cat((x,direction),dim=1)
         logits = self.fc(image_direction)
-        return F.log_softmax(logits,dim=-1)
+        return self.log_softmax(logits)
 
 class Checkpoint:
     def __init__(self,folder_path,load_path,save_path):
