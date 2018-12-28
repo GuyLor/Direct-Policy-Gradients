@@ -38,7 +38,7 @@ parser.add_argument('--discount', type=float, default=1.0,
 parser.add_argument('--max_steps', type=float, default=100,
                     help='max trajectory length')
 
-parser.add_argument('--max_search_time', type=float, default=15,
+parser.add_argument('--max_search_time', type=float, default=5,
                     help='max time in seconds of one t_direct search (priority queue) ')
 
 parser.add_argument('--update_wo_improvement',action='store_true',
@@ -47,7 +47,7 @@ parser.add_argument('--update_wo_improvement',action='store_true',
 parser.add_argument('--keep_searching',action='store_true',
                     help='keep searching for t_direct even if priority(t_direct)>priority(t_opt)')
 
-parser.add_argument('--seed', type=int, default=100,
+parser.add_argument('--seed', type=int, default=0,
                     help='random seed')
                     
 parser.add_argument('--play',action='store_true',
