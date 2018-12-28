@@ -7,6 +7,7 @@ from torch.distributions import Categorical
 import scripts.utils as utils
 from scripts.minigrid_rl import MinigridRL
 
+
 class Reinforce(MinigridRL):
     def __init__(self,
                  env_path,
@@ -21,15 +22,22 @@ class Reinforce(MinigridRL):
         
         self.saved_log_probs = []
         self.rewards = []
-        self.policy.log_softmax = torch.nn.Softmax(dim=-1)
+        self.baseline = []
+        
+        self.policy.fc = torch.nn.Linear(64+4, self.num_actions+1)
+        self.policy.log_softmax = Identity()
+        self.load_checkpoint()
+        #self.policy.log_softmax = torch.nn.Softmax(dim=-1)
     def select_action(self,state):
         #state = torch.from_numpy(state).float().unsqueeze(0)
-        probs = self.policy([state])
+        output = self.policy([state])
+        scores,baseline = output[:,:self.num_actions],output[:,self.num_actions]
+        probs = torch.nn.functional.softmax(scores,dim=-1)
         m = Categorical(probs)
         action = m.sample()
 
         self.saved_log_probs.append(m.log_prob(action))
-        return action.item()
+        return action.item(),baseline.item()
     
     def finish_episode(self):
         R = 0
@@ -39,14 +47,21 @@ class Reinforce(MinigridRL):
             R = r + self.discount * R
             rewards.insert(0, R)
         rewards = torch.tensor(rewards)
-        #rewards = (rewards - rewards.mean())/(rewards.std() + 1.2e-7)
-        for log_prob, reward in zip(self.saved_log_probs, rewards):
+        rewards = (rewards - rewards.mean())/(rewards.std() + 1.2e-7)
+        
+        pred = torch.tensor(self.baseline)
+        pred.requires_grad = True
+        advantage = (rewards - pred).detach()
+        baseline_loss = torch.nn.functional.mse_loss(pred,rewards)
+        
+        for log_prob, reward in zip(self.saved_log_probs, advantage):
             policy_loss.append(-log_prob * reward)
         self.optimizer.zero_grad()
-        policy_loss = torch.cat(policy_loss).sum()
+        policy_loss = torch.cat(policy_loss).sum()+baseline_loss
         policy_loss.backward()
         self.optimizer.step()
         del self.rewards[:]
+        del self.baseline[:]
         del self.saved_log_probs[:]
 
     def train(self,num_episodes=500,seed = 1234):
@@ -58,12 +73,13 @@ class Reinforce(MinigridRL):
             actions=[]
             done=False
             while not done:
-                action = self.select_action(state)
+                action,b = self.select_action(state)
                 state, reward, done, _ = self.env.step(action)
                 """
                 if reward==0:
-                    reward= -0.1
-                """
+                    reward= -0.1"""
+
+                self.baseline.append(b)
                 self.rewards.append(reward)
                 actions.append(action)
             trajectory_reward,suc = self.run_episode(actions,seed)
@@ -90,7 +106,7 @@ class Reinforce(MinigridRL):
             actions=[]
             
             while not done:
-                action = self.select_action(state)
+                action,b = self.select_action(state)
                 state, reward, done, _ = self.env.step(action)
                 actions.append(action)
             return actions
@@ -100,3 +116,9 @@ class Reinforce(MinigridRL):
             super().play(actions,seed,auto=auto)
             if not inarow:
                 break
+
+class Identity(torch.nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+    def forward(self,x):
+        return x

@@ -20,8 +20,11 @@ class MinigridRL:
         self.policy = pm.Policy(self.num_actions)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=0.001)
         self.cp = chekpoint
-        self.load_checkpoint()
-        
+        try:
+            self.load_checkpoint()
+        except Exception as e:
+            print('failed to load policy ',e)
+            print ('trying again')
         self.map_actions = ['left','right','forward','pickup','drop','toggle','done']    
     def run_episode(self,actions_list,seed,target_reward=1.0):
         """Interacts with the environment given actions """

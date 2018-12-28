@@ -1142,7 +1142,7 @@ class MiniGridEnv(gym.Env):
                 if opened:
                     reward = 0.3
                 elif fwd_cell.type == 'door':
-                    reward = -0.25
+                    reward = -0.3
 
         # Done action (not used by default)
         elif action == self.actions.done:

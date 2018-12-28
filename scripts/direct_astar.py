@@ -113,7 +113,8 @@ class DirectAstar(MinigridRL):
             if inference and not parent.t_opt:
                 t_direct=None
                 break
-            if  parent.done:
+
+            if  parent.done or (not parent.t_opt and parent.priority>t_opt.node.priority):
                 t = Trajectory(actions=parent.prefix,
                                states=parent.states,
                                gumbel=parent.max_gumbel,
@@ -123,17 +124,15 @@ class DirectAstar(MinigridRL):
                 assert len(t.actions) == len(parent.states)-1
                 if parent.t_opt:
                     t_opt = t
-                    value_to_stop = t_opt.node.priority
                 else:
                     final_trajectories.append(t)
                     if parent.priority>max_gumbel_eps_reward:
                         max_gumbel_eps_reward = parent.priority
                         t_direct = t
-                        if  parent.priority>value_to_stop and not self.keep_searching:
+                        if  parent.priority>t_opt.node.priority and not self.keep_searching:
                             if to_print:
                                 print('stop!!', parent.done,parent.priority,value_to_stop)
                                 print('*'*100)
-                            
                             break
                 continue
             if time.time()-start_time>self.max_search_time:
@@ -144,7 +143,7 @@ class DirectAstar(MinigridRL):
                                reward=parent.reward_so_far,
                                status=parent.done,
                                node = parent)
-                    final_trajectories.append(t_direct)
+                    final_trajectories.append(t_direct)            
                 break
 
             current_state = parent.states[-1]
@@ -224,27 +223,43 @@ class DirectAstar(MinigridRL):
 
         policy_loss = torch.sum(y_opt_direct*phi)
         return policy_loss
+    
+    def direct_optimization_loss_normelized_phi(self,t_direct):
+
+        direct_states  = t_direct.states[:-1]
+        direct_actions = torch.LongTensor(t_direct.actions).view(-1,1)
+        
+        phi = self.policy(direct_states) # gets the logits so the network will calculates weights gradients
+        y_direct =  -torch.FloatTensor(direct_actions.size(0),phi.size(1)).zero_().scatter_(-1,direct_actions,1.0) # one-hot which points to the best direction
+        y_opt_direct = y_direct*(1.0/self.epsilon)
+        policy_loss = torch.sum(y_opt_direct*phi)
+        return policy_loss
 
     def train(self,num_episodes=500,seed = 1234):
         success = 0
         rewards = []
+        
         for episode in range(num_episodes):
             self.env.seed(seed)
             print('episode: ',episode)
             t_opt, t_direct,final_trajectories = self.sample_t_opt_and_search_for_t_direct()
+            
             if t_direct.node.priority > t_opt.node.priority or self.update_wo_improvement:
+
+                opt,improvement = t_opt,t_direct
+
                 self.policy.train()
-                policy_loss = self.direct_optimization_loss(t_opt=t_opt,t_direct=t_direct)
+                policy_loss = self.direct_optimization_loss_normelized_phi(t_direct=improvement)
                 self.optimizer.zero_grad()
                 policy_loss.backward()
                 self.optimizer.step()
-            
-            trajectory_reward,suc = self.run_episode(t_opt.actions,seed)
+                
+            opt_reward,suc = self.run_episode(t_opt.actions,seed)
             success += suc
-            print ('opt reward: {:.3f},success: {}, length: {}, priority: {:.3f}'.format(trajectory_reward,suc,len(t_opt.actions),t_opt.node.priority))
+            print ('opt reward: {:.3f},success: {}, length: {}, priority: {:.3f}'.format(opt_reward,suc,len(t_opt.actions),t_opt.node.priority))
             t_direct_reward,suc = self.run_episode(t_direct.actions,seed)
             print ('direct reward: {:.3f},success: {}, length: {}, priority: {:.3f}'.format(t_direct_reward,suc,len(t_direct.actions),t_direct.node.priority))
-            rewards.append(trajectory_reward)
+            rewards.append(opt_reward)
             seed+=1
             if episode % 20 == 1:
                 self.save_checkpoint()
