@@ -103,17 +103,24 @@ class DirectAstar(MinigridRL):
         max_gumbel_eps_reward ,max_gumbel= -float('Inf'),-float('Inf')
         
         final_trajectories = []
-        start_time = time.time()
+        start_time = float('Inf')
+        flag=True
         while queue:
             if to_print:
                 print(10*'-')
                 for q in queue:
                     print(q.priority,q.t_opt,'|',q.prefix,q.reward_so_far,q.logprob_so_far,q.max_gumbel,q.next_actions)
+                    
             parent = heapq.heappop(queue)
+            
             if inference and not parent.t_opt:
                 t_direct=None
                 break
-
+                
+            if not parent.t_opt and flag:
+                start_time = time.time()
+                flag = False
+                
             if  parent.done or (not parent.t_opt and parent.priority>t_opt.node.priority):
                 t = Trajectory(actions=parent.prefix,
                                states=parent.states,
