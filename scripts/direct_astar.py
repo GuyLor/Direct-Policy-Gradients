@@ -103,17 +103,21 @@ class DirectAstar(MinigridRL):
         max_gumbel_eps_reward ,max_gumbel= -float('Inf'),-float('Inf')
         
         final_trajectories = []
-        start_time = time.time()
+        start_time = float('Inf')
+        flag = True
         while queue:
             if to_print:
                 print(10*'-')
                 for q in queue:
                     print(q.priority,q.t_opt,'|',q.prefix,q.reward_so_far,q.logprob_so_far,q.max_gumbel,q.next_actions)
+        
             parent = heapq.heappop(queue)
             if inference and not parent.t_opt:
                 t_direct=None
                 break
-
+            if not parent.t_opt and flag:
+                start_time = time.time()
+                flag = False
             if  parent.done or (not parent.t_opt and parent.priority>t_opt.node.priority):
                 t = Trajectory(actions=parent.prefix,
                                states=parent.states,
@@ -143,7 +147,7 @@ class DirectAstar(MinigridRL):
                                reward=parent.reward_so_far,
                                status=parent.done,
                                node = parent)
-                    final_trajectories.append(t_direct)            
+                    final_trajectories.append(t_direct)
                 break
 
             current_state = parent.states[-1]
@@ -245,14 +249,15 @@ class DirectAstar(MinigridRL):
             t_opt, t_direct,final_trajectories = self.sample_t_opt_and_search_for_t_direct()
             
             if t_direct.node.priority > t_opt.node.priority or self.update_wo_improvement:
-
                 opt,improvement = t_opt,t_direct
-
-                self.policy.train()
-                policy_loss = self.direct_optimization_loss_normelized_phi(t_direct=improvement)
-                self.optimizer.zero_grad()
-                policy_loss.backward()
-                self.optimizer.step()
+            else:
+                opt,improvement = t_direct,t_opt
+            self.policy.train()
+            #policy_loss = self.direct_optimization_loss(opt,improvement)
+            policy_loss = self.direct_optimization_loss_normelized_phi(t_direct=improvement)
+            self.optimizer.zero_grad()
+            policy_loss.backward()
+            self.optimizer.step()
                 
             opt_reward,suc = self.run_episode(t_opt.actions,seed)
             success += suc
