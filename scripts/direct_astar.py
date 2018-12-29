@@ -104,20 +104,37 @@ class DirectAstar(MinigridRL):
         
         final_trajectories = []
         start_time = float('Inf')
+<<<<<<< HEAD
         flag = True
+=======
+        flag=True
+>>>>>>> 860ad91dcc019fe0b514a2a99a57e3f7c2febc28
         while queue:
             if to_print:
                 print(10*'-')
                 for q in queue:
                     print(q.priority,q.t_opt,'|',q.prefix,q.reward_so_far,q.logprob_so_far,q.max_gumbel,q.next_actions)
+<<<<<<< HEAD
         
+=======
+                    
+>>>>>>> 860ad91dcc019fe0b514a2a99a57e3f7c2febc28
             parent = heapq.heappop(queue)
+            
             if inference and not parent.t_opt:
                 t_direct=None
                 break
+<<<<<<< HEAD
             if not parent.t_opt and flag:
                 start_time = time.time()
                 flag = False
+=======
+                
+            if not parent.t_opt and flag:
+                start_time = time.time()
+                flag = False
+                
+>>>>>>> 860ad91dcc019fe0b514a2a99a57e3f7c2febc28
             if  parent.done or (not parent.t_opt and parent.priority>t_opt.node.priority):
                 t = Trajectory(actions=parent.prefix,
                                states=parent.states,
