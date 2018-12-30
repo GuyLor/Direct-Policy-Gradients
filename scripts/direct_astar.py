@@ -63,6 +63,7 @@ class DirectAstar(MinigridRL):
                  update_wo_improvement=False,
                  keep_searching = False,
                  max_steps=240,
+                 full_t_direct=False,
                  discount=0.99,
                  max_search_time=30,
                  eps_grad=1.0,
@@ -74,9 +75,11 @@ class DirectAstar(MinigridRL):
         self.epsilon = eps_grad
         Node.epsilon = eps_reward
         Node.discount = self.discount
+        self.full_t_direct=full_t_direct
         self.update_wo_improvement = update_wo_improvement # if true, updates even if priority(t_direct)<priority(t_opt)
         self.keep_searching = keep_searching # if true, keep searching for t_direct even if priority(t_direct)>priority(t_opt)
-    
+        if full_t_direct and self.discount >= 1:
+            print('it is recommended to set discount to <1')
     def sample_t_opt_and_search_for_t_direct(self,inference=False,to_print=False):
         """Samples an independent Gumbel(logprob) for each trajectory in top-down-ish order.
         Args:
@@ -125,7 +128,7 @@ class DirectAstar(MinigridRL):
                 start_time = time.time()
                 flag = False
 
-            if  parent.done or (not parent.t_opt and parent.priority>t_opt.node.priority):
+            if  parent.done or (not parent.t_opt and parent.priority>t_opt.node.priority and not self.full_t_direct):
                 t = Trajectory(actions=parent.prefix,
                                states=parent.states,
                                gumbel=parent.max_gumbel,
@@ -142,7 +145,7 @@ class DirectAstar(MinigridRL):
                         t_direct = t
                         if  parent.priority>t_opt.node.priority and not self.keep_searching:
                             if to_print:
-                                print('stop!!', parent.done,parent.priority,value_to_stop)
+                                print('stop!!', parent.done,parent.priority,t_opt.node.priority)
                                 print('*'*100)
                             break
                 continue
@@ -257,14 +260,14 @@ class DirectAstar(MinigridRL):
             
             if t_direct.node.priority > t_opt.node.priority or self.update_wo_improvement:
                 opt,improvement = t_opt,t_direct
-            else:
-                opt,improvement = t_direct,t_opt
-            self.policy.train()
-            #policy_loss = self.direct_optimization_loss(opt,improvement)
-            policy_loss = self.direct_optimization_loss_normelized_phi(t_direct=improvement)
-            self.optimizer.zero_grad()
-            policy_loss.backward()
-            self.optimizer.step()
+                #else:
+                #opt,improvement = t_direct,t_opt
+                self.policy.train()
+                #policy_loss = self.direct_optimization_loss(opt,improvement)
+                policy_loss = self.direct_optimization_loss_normelized_phi(t_direct=improvement)
+                self.optimizer.zero_grad()
+                policy_loss.backward()
+                self.optimizer.step()
                 
             opt_reward,suc = self.run_episode(t_opt.actions,seed)
             success += suc

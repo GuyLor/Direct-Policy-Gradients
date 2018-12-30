@@ -32,7 +32,7 @@ parser.add_argument('--eps_reward', type=float, default=1.0,
 parser.add_argument('--eps_grad', type=float, default=1.0,
                     help='gradient = 1/eps_grad * [grad(t_opt) - grad(t_direct)]')
 
-parser.add_argument('--discount', type=float, default=1.0,
+parser.add_argument('--discount', type=float, default=0.99,
                     help='it is better to leave the discount factor 1 because t_direct is shorter then t_opt')
 
 parser.add_argument('--max_steps', type=float, default=100,
@@ -40,6 +40,9 @@ parser.add_argument('--max_steps', type=float, default=100,
 
 parser.add_argument('--max_search_time', type=float, default=5,
                     help='max time in seconds of one t_direct search (priority queue) ')
+
+parser.add_argument('--full_t_direct',action='store_true',
+                    help='stop the searching only when len(t_direct)== max_steps. If true it is recommended to set discount to <1')
 
 parser.add_argument('--update_wo_improvement',action='store_true',
                     help='update parameters even if priority(t_direct)<priority(t_opt)')
@@ -69,6 +72,7 @@ def main():
                         eps_grad=args.eps_grad,
                         eps_reward=args.eps_reward,
                         max_steps=args.max_steps,
+                        full_t_direct=args.full_t_direct,
                         max_search_time=args.max_search_time,
                         update_wo_improvement=args.update_wo_improvement,
                         keep_searching=args.keep_searching)
