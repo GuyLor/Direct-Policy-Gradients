@@ -32,7 +32,7 @@ parser.add_argument('--eps_reward', type=float, default=1.0,
 parser.add_argument('--eps_grad', type=float, default=1.0,
                     help='gradient = 1/eps_grad * [grad(t_opt) - grad(t_direct)]')
 
-parser.add_argument('--discount', type=float, default=0.99,
+parser.add_argument('--discount', type=float, default=1.0,
                     help='it is better to leave the discount factor 1 because t_direct is shorter then t_opt')
 
 parser.add_argument('--max_steps', type=float, default=100,
