@@ -233,7 +233,7 @@ class DirectAstar(MinigridRL):
         y_opt = torch.FloatTensor(opt_actions.size(0),phi.size(1)).zero_().scatter_(-1, opt_actions,1.0)
         
         y_opt_direct = torch.cat((y_opt,y_direct))
-        y_opt_direct = y_opt_direct*(1.0/self.epsilon)
+        y_opt_direct = utils.use_gpu(y_opt_direct*(1.0/self.epsilon))
 
         policy_loss = torch.sum(y_opt_direct*phi)
         return policy_loss
@@ -245,7 +245,7 @@ class DirectAstar(MinigridRL):
         
         phi = self.policy(direct_states) # gets the logits so the network will calculates weights gradients
         y_direct =  -torch.FloatTensor(direct_actions.size(0),phi.size(1)).zero_().scatter_(-1,direct_actions,1.0) # one-hot which points to the best direction
-        y_opt_direct = y_direct*(1.0/self.epsilon)
+        y_opt_direct = utils.use_gpu(y_direct*(1.0/self.epsilon))
         policy_loss = torch.sum(y_opt_direct*phi)
         return policy_loss
 
