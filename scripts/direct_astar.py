@@ -163,7 +163,7 @@ class DirectAstar(MinigridRL):
             current_state = parent.states[-1]
             with torch.no_grad():
                 self.policy.eval()
-                action_logprobs = self.policy([current_state]).numpy().squeeze(0)
+                action_logprobs = self.policy([current_state]).cpu().numpy().squeeze(0)
 
             next_action_logprobs = action_logprobs[parent.next_actions]
 
