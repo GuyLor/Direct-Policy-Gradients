@@ -6,7 +6,7 @@ import torch.optim as optim
 import numpy as np
 import saved_models
 import os
-
+import scripts.utils as utils
 class Policy(nn.Module):
     """ policy for gym-minigrid env """
     def __init__(self, action_space):
@@ -26,17 +26,19 @@ class Policy(nn.Module):
         )
         self.log_softmax = nn.LogSoftmax(dim=-1)
 
+
     def forward(self,batch_obs):
         images = []
         directions = []
         for obs in batch_obs:
             image = np.array([obs["image"]])
-            image = torch.tensor(image,dtype=torch.float)
+            image = utils.use_gpu(torch.tensor(image,dtype=torch.float))
             x = torch.transpose(torch.transpose(image, 1, 3), 2, 3)
             images.append(x)
             
             direction = torch.LongTensor([obs["direction"]]).unsqueeze(0)
             direction = torch.FloatTensor(direction.size(0),self.number_directions).zero_().scatter_(-1, direction,1.0)
+            direction=utils.use_gpu(direction)
             directions.append(direction)
         x = torch.cat(images)
         direction = torch.cat(directions)

@@ -1,5 +1,6 @@
 
 import numpy as np
+import torch
 
 def sample_gumbel(mu):
     """Sample a Gumbel(mu)."""    
@@ -41,3 +42,8 @@ def log_softmax(logits, axis=1):
     offset_logits = logits - maxes
     log_zs = np.log(np.sum(np.exp(offset_logits), axis=axis, keepdims=True))
     return offset_logits - log_zs
+
+def use_gpu(x):
+    if torch.cuda.is_available():
+        x = x.cuda()
+    return x

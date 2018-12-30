@@ -5,6 +5,7 @@ from gym_minigrid.register import env_list
 import time
 import sys
 
+import scripts.utils as utils
 import scripts.policy_model as pm
 
 class MinigridRL:
@@ -17,7 +18,8 @@ class MinigridRL:
         self.num_actions=self.env.action_space.n
         
         self.discount=discount
-        self.policy = pm.Policy(self.num_actions)
+        policy = pm.Policy(self.num_actions)
+        self.policy = utils.use_gpu(policy)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=0.001)
         self.cp = chekpoint
         try:
