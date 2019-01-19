@@ -49,9 +49,6 @@ parser.add_argument('--max_interactions', type=float, default=3000,
 parser.add_argument('--max_search_time', type=float, default=30,
                     help='max time in seconds of one t_direct search (priority queue) ')
 
-parser.add_argument('--full_t_direct',action='store_true',
-                    help='stop the searching only when len(t_direct)== max_steps. If true it is recommended to set discount to <1')
-
 parser.add_argument('--update_wo_improvement',action='store_true',
                     help='update parameters even if priority(t_direct)<priority(t_opt)')
 
@@ -85,8 +82,7 @@ def main():
                         discount=args.discount,
                         eps_grad=args.eps_grad,
                         eps_reward=args.eps_reward,
-                        max_steps=args.max_steps,
-                        full_t_direct=args.full_t_direct,
+                        max_steps=args.max_steps,                        
                         max_interactions=args.max_interactions,
                         mixed_search_strategy = args.mixed_search_strategy,
                         dfs_like=args.dfs_like,

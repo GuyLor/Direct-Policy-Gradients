@@ -39,7 +39,6 @@ class Node:
         self.t = len(self.prefix)
         
         self.states = states
-        #self.discounted_reward_so_far = self.discounted_reward_so_far + reward_so_far[-1]*self.discount**self.t
         
         self.reward_so_far = reward_so_far
         self.done = done
@@ -73,7 +72,7 @@ class Node:
             return True
     def set_priority(self):
         return self.max_gumbel+self.epsilon*(self.reward_so_far + self.bound_reward_togo)
-    
+
     def set_bound_reward_togo(self):
         return 100 * self.discount ** (self.t + self.manhattan_distance()) + (30*self.doors_togo )*self.discount**self.t
     def set_objective(self):
@@ -96,7 +95,6 @@ class DirectAstar(MinigridRL):
                  update_wo_improvement=False,
                  keep_searching = False,
                  max_steps=240,
-                 full_t_direct=False,
                  discount=0.99,
                  max_search_time=30,
                  max_interactions = 3000,
@@ -115,7 +113,7 @@ class DirectAstar(MinigridRL):
         Node.epsilon = eps_reward
         Node.discount = self.discount
         Node.doors_togo = len(self.env.rooms)-1
-        self.full_t_direct=full_t_direct
+        
         self.update_wo_improvement = update_wo_improvement # if true, updates even if priority(t_direct)<priority(t_opt)
         self.keep_searching = keep_searching # if true, keep searching for t_direct even if priority(t_direct)>priority(t_opt)
 
@@ -158,13 +156,11 @@ class DirectAstar(MinigridRL):
             if not parent.t_opt and not start_search_direct:
                 start_time = time.time()
                 start_search_direct = True
-            if not parent.t_opt:
-                stop = parent.objective>t_opt.node.objective
-                
+            
             if self.mixed_search_strategy and num_interactions > self.max_interactions/2: # - self.max_steps:
                 dfs_like = not self.dfs_like
             
-            if  parent.done or (not parent.t_opt and stop and not self.full_t_direct):
+            if  parent.done:
                 t = Trajectory(actions=parent.prefix,
                                states=parent.states,
                                gumbel=parent.max_gumbel,
@@ -185,21 +181,23 @@ class DirectAstar(MinigridRL):
                         best_direct = parent.objective
                         t_direct = t
                         
-                        if stop and not self.keep_searching or t_direct.reward == Node.max_reward:
+                        if parent.objective>t_opt.node.objective and not self.keep_searching or t_direct.reward == Node.max_reward:
                             print('*****  priority(direct) > priority(opt)   *****')
                             break
                 continue
             
             if time.time()-start_time>self.max_search_time or num_interactions >= self.max_interactions:
-                if len(final_trajectories)==0:
+                print("*****  time's-up/max interactions   *****")
+                if len(final_trajectories)==0 :
+                    print('take the best prefix')
                     t_direct = Trajectory(actions=parent.prefix,
-                               states=parent.states,
+                               states= parent.states,
                                gumbel=parent.max_gumbel,
                                reward=parent.reward_so_far,
                                status=parent.done,
                                node = parent)
                     final_trajectories.append(t_direct)
-                print("*****  time's-up/max interactions   *****")
+            
                 break
             
 
@@ -337,6 +335,8 @@ class DirectAstar(MinigridRL):
                 self.optimizer.zero_grad()
                 policy_loss.backward()
                 self.optimizer.step()
+            else:
+                print('no updating because objective(direct) < objective(opt) or direct is with empty prefix')
             interactions.append(num_interactions)
             opt_reward,suc = self.run_episode(t_opt.actions,seed)
             success += suc
