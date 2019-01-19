@@ -57,7 +57,7 @@ class Node:
         
         self.bound_reward_togo = self.set_bound_reward_togo()
         self.priority = self.set_priority()
-
+        self.objective = self.set_objective()
     
     
     
@@ -76,6 +76,8 @@ class Node:
     
     def set_bound_reward_togo(self):
         return 100 * self.discount ** (self.t + self.manhattan_distance()) + (30*self.doors_togo )*self.discount**self.t
+    def set_objective(self):
+        return self.max_gumbel+self.epsilon*self.reward_so_far
     
     def manhattan_distance(self):
         goal_pos = self.env.goal_pos
@@ -157,7 +159,7 @@ class DirectAstar(MinigridRL):
                 start_time = time.time()
                 start_search_direct = True
             if not parent.t_opt:
-                stop = parent.priority>t_opt.node.priority
+                stop = parent.objective>t_opt.node.objective
                 
             if self.mixed_search_strategy and num_interactions > self.max_interactions/2: # - self.max_steps:
                 dfs_like = not self.dfs_like
@@ -179,8 +181,8 @@ class DirectAstar(MinigridRL):
             
                 else:
                     final_trajectories.append(t)
-                    if parent.priority > best_direct:
-                        best_direct = parent.priority
+                    if parent.objective > best_direct:
+                        best_direct = parent.objective
                         t_direct = t
                         
                         if stop and not self.keep_searching or t_direct.reward == Node.max_reward:
@@ -325,7 +327,7 @@ class DirectAstar(MinigridRL):
 
             t_opt, t_direct,num_interactions = self.sample_t_opt_and_search_for_t_direct()
             
-            if (t_direct.node.priority > t_opt.node.priority or self.update_wo_improvement) and len(t_direct.states)>1:
+            if (t_direct.node.objective > t_opt.node.objective or self.update_wo_improvement) and len(t_direct.states)>1:
                 opt,improvement = t_opt,t_direct
                 #else:
                     #opt,improvement = t_direct,t_opt
@@ -338,9 +340,9 @@ class DirectAstar(MinigridRL):
             interactions.append(num_interactions)
             opt_reward,suc = self.run_episode(t_opt.actions,seed)
             success += suc
-            print ('opt reward: {:.3f},success: {}, length: {}, priority: {:.3f}'.format(opt_reward,suc,len(t_opt.actions),t_opt.node.priority))
+            print ('opt reward: {:.3f},success: {}, length: {}, priority: {:.3f}, objective: {:.3f}'.format(opt_reward,suc,len(t_opt.actions),t_opt.node.priority,t_opt.node.objective))
             direct_reward,suc = self.run_episode(t_direct.actions,seed)
-            print ('direct reward: {:.3f},success: {}, length: {}, priority: {:.3f}'.format(direct_reward,suc,len(t_direct.actions),t_direct.node.priority))
+            print ('direct reward: {:.3f},success: {}, length: {}, priority: {:.3f}, objective: {:.3f}'.format(direct_reward,suc,len(t_direct.actions),t_direct.node.priority,t_direct.node.objective))
             
             to_plot_opt.append((count_interactions+len(t_opt.actions),opt_reward))
             to_plot_direct.append((count_interactions+num_interactions,direct_reward))

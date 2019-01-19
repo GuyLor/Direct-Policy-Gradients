@@ -98,7 +98,7 @@ class Reinforce(MinigridRL):
             trajectory_reward_test,suc_test = self.run_episode(actions[:m],seed)
             print ('reinforce reward train: {:.3f},success: {}, length: {}'.format(trajectory_reward,suc,len(actions)))
             print ('reinforce reward test: {:.3f},success: {}, length: {}'.format(trajectory_reward_test,suc_test,len(actions[:m])))
-            to_plot.append((s,trajectory_reward))
+            to_plot.append((count_interactions,trajectory_reward))
             to_plot100.append((count_interactions,trajectory_reward_test))
             if self.trial % repeat_map == 0:
                 print('--------- new map {} -------------'.format(self.episode))
