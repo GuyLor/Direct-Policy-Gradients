@@ -56,7 +56,7 @@ class Node:
         
         self.bound_reward_togo = self.set_bound_reward_togo()
         self.priority = self.set_priority()
-        self.objective = self.set_objective()
+        self.objective = self.set_priority() #self.set_objective()
     
     
     
