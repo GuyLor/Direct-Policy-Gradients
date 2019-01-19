@@ -9,26 +9,27 @@ import scripts.utils as utils
 import scripts.policy_model as pm
 
 class MinigridRL:
-    def __init__(self,env_path,chekpoint,seed,max_steps=120,discount = 0.99):
+    def __init__(self,env_path,chekpoint,seed,max_steps=120,max_interactions=1000,discount = 0.99):
         self.set_seed(seed)
         self.env_path =env_path
         self.max_steps=max_steps
         self.env = self.reset()
         
         self.num_actions=self.env.action_space.n
-        
+        self.max_interactions=max_interactions
         self.discount=discount
         policy = pm.Policy(self.num_actions)
         self.policy = utils.use_gpu(policy)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=0.001)
         self.cp = chekpoint
+        self.log = {}
         try:
             self.load_checkpoint()
         except Exception as e:
             print('failed to load policy ',e)
             print ('trying again')
         self.map_actions = ['left','right','forward','pickup','drop','toggle','done']    
-    def run_episode(self,actions_list,seed,target_reward=1.0):
+    def run_episode(self,actions_list,seed,target_reward=100):
         """Interacts with the environment given actions """
         rewards = 0
         done = False

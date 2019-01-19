@@ -8,7 +8,7 @@ import scripts.utils as utils
 from scripts.minigrid_rl import MinigridRL
 
 
-class Reinforce(MinigridRL):
+class ReinforceBaseline(MinigridRL):
     def __init__(self,
                  env_path,
                  chekpoint,
@@ -23,17 +23,21 @@ class Reinforce(MinigridRL):
         
         self.saved_log_probs = []
         self.rewards = []
-        self.policy.log_softmax = torch.nn.Softmax(dim=-1)
-        self.alpha = 0.9
-        self.return_base=0
-    
+        self.baseline = []
+        self.policy.fc = torch.nn.Linear(64+4, self.num_actions+1)
+        self.policy.log_softmax = Identity()
+        self.load_checkpoint()
+        #self.policy.log_softmax = torch.nn.Softmax(dim=-1)
     def select_action(self,state):
         #state = torch.from_numpy(state).float().unsqueeze(0)
-        probs = self.policy([state])
+        output = self.policy([state])
+        scores,baseline = output[:,:self.num_actions],output[:,self.num_actions]
+        probs = torch.nn.functional.softmax(scores,dim=-1)
         m = Categorical(probs)
         action = m.sample()
+
         self.saved_log_probs.append(m.log_prob(action))
-        return action.item()
+        return action.item(),baseline.item()
     
     def finish_episode(self):
         R = 0
@@ -42,40 +46,36 @@ class Reinforce(MinigridRL):
         for r in self.rewards[::-1]:
             R = r + self.discount * R
             rewards.insert(0, R)
-        
-        
         rewards = torch.tensor(rewards)
-        """
-        rewards = rewards - self.return_base
-        if self.trial> 1/(1-self.alpha):
-            self.return_base = self.alpha * rewards + (1-self.alpha)*self.return_base
-        else:
-            self.return_base = self.return_base*(self.trial-1)/self.trial + rewards/self.trial
-        """
+        #rewards = (rewards - rewards.mean())/(rewards.std() + 1.2e-7)
         
-        rewards = (rewards - rewards.mean())/(rewards.std() + 1.2e-7)
+        pred = torch.tensor(self.baseline)
+        pred.requires_grad = True
         
+        #return_base = alpha * rewards + (1-alpha)*return_base
+
+        advantage = (rewards - pred).detach()
+        baseline_loss = torch.nn.functional.mse_loss(pred,rewards)
         
-        
-        for log_prob, reward in zip(self.saved_log_probs, rewards):
+        for log_prob, reward in zip(self.saved_log_probs, advantage):
             policy_loss.append(-log_prob * reward)
         self.optimizer.zero_grad()
-        policy_loss = torch.cat(policy_loss).sum()
+        policy_loss = torch.cat(policy_loss).sum()+baseline_loss
         policy_loss.backward()
         self.optimizer.step()
         del self.rewards[:]
+        del self.baseline[:]
         del self.saved_log_probs[:]
 
     def train(self,num_episodes=500,seed = 1234):
         success = 0
         to_plot = []
-        to_plot100 = []
         repeat_map = self.max_interactions//self.max_steps
-        self.episode = 1
-        self.trial = 0
+        episode = 0
+        trial = 0
         count_interactions=0
         while count_interactions < self.max_interactions*num_episodes:
-            self.trial+=1
+            trial+=1
             
             self.env.seed(seed)
             state = self.env.reset()
@@ -84,8 +84,9 @@ class Reinforce(MinigridRL):
             done=False
             
             while not done:
-                action = self.select_action(state)
+                action,b = self.select_action(state)
                 state, reward, done, _ = self.env.step(action)
+                self.baseline.append(b)
                 self.rewards.append(reward)
                 actions.append(action)
             
@@ -94,23 +95,20 @@ class Reinforce(MinigridRL):
             trajectory_reward,suc = self.run_episode(actions,seed)
             success += suc
             
-            m = min(100,len(actions))
-            trajectory_reward_test,suc_test = self.run_episode(actions[:m],seed)
+
             print ('reinforce reward train: {:.3f},success: {}, length: {}'.format(trajectory_reward,suc,len(actions)))
-            print ('reinforce reward test: {:.3f},success: {}, length: {}'.format(trajectory_reward_test,suc_test,len(actions[:m])))
-            to_plot.append((s,trajectory_reward))
-            to_plot100.append((count_interactions,trajectory_reward_test))
-            if self.trial % repeat_map == 0:
-                print('--------- new map {} -------------'.format(self.episode))
+            
+            to_plot.append((count_interactions,trajectory_reward))
+            
+            if trial % repeat_map == 0:
+                print('--------- new map {} -------------'.format(episode))
                 seed+=1
-                self.episode +=1
-            if self.episode % 20 == 1:
+                episode +=1
+            if episode % 20 == 1:
                 self.save_checkpoint()
         
         self.log['to_plot'] = to_plot
-        self.log['to_plot100'] = to_plot100
         self.save_checkpoint()
-
     
     def play(self,sample_opt = True,seed=1234,inarow=True,auto=True):
 
@@ -122,7 +120,7 @@ class Reinforce(MinigridRL):
             actions=[]
             
             while not done:
-                action = self.select_action(state)
+                action,b = self.select_action(state)
                 state, reward, done, _ = self.env.step(action)
                 actions.append(action)
             return actions
@@ -133,4 +131,8 @@ class Reinforce(MinigridRL):
             if not inarow:
                 break
 
-
+class Identity(torch.nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+    def forward(self,x):
+        return x
