@@ -70,11 +70,12 @@ class Node:
             self.doors_togo = parent_doors_togo - 1
         else:
             self.doors_togo = parent_doors_togo
-        
+
         self.bound_reward_togo = self.get_bound_reward_togo()
         self.upper_bound = self.get_upper_bound()
         self.priority = self.get_priority_alpha_upper_bound(self.alpha)
         self.objective = self.get_objective()
+
     def __lt__(self, other):
         if self.t_opt == other.t_opt and not self.dfs_like: #false==false
             return self.priority > other.priority
@@ -325,6 +326,8 @@ class DirectAstar(MinigridRL):
             
             if time.time()-start_time>self.max_search_time or num_interactions >= self.max_interactions:
                 #print("*****  time's-up/max interactions   *****")
+                
+                # Change to True if you want to consider prefix. This can be much better in some cases.
                 if False and len(final_trajectories)==1 :
                     print('take the best prefix')
                     t_direct = Trajectory(actions=parent.prefix,
@@ -351,7 +354,6 @@ class DirectAstar(MinigridRL):
             if DEBUG and parent.reward_so_far > 0:
                 pdb.set_trace()
 
-            # reward = reward * self.discount ** len(parent.prefix)
             special_child = Node(
                                  env = parent.env,
                                  prefix=parent.prefix + [special_action],
@@ -407,7 +409,7 @@ class DirectAstar(MinigridRL):
                     heapq.heappush(queue,other_children)
         if not inference:
             print ('pruned branches: {}, t_direct candidates: {}, nodes left in queue: {}, num interactions: {} '.format(prune_count,len(final_trajectories), len(queue),num_interactions))
-            #print('num nodes with reward>0: {}, longest prefix with reward: {}'.format(num_popped_nodes_with_reward, longest_prefix_with_reward))
+
         return t_opt, t_direct,final_trajectories,num_interactions
         
     def get_one_side_loss(self,t,is_direct):
@@ -425,7 +427,7 @@ class DirectAstar(MinigridRL):
         policy_loss = torch.sum(y_opt_direct*phi)/self.eps_grad
         return policy_loss
         
-    def direct_optimization_loss(self,t_opt,t_direct,eps_per_action=False):
+    def direct_optimization_loss(self,t_opt,t_direct):
         """computes \nabla \phi(a,s) = \sum_{t=1}^T \nabla \phi(a_t, s_t) with direct optimization
         Args:
             policy_model: Pytorch model gets state and returns actions logits
@@ -447,59 +449,11 @@ class DirectAstar(MinigridRL):
         y_opt = torch.FloatTensor(opt_actions.size(0),phi.size(1)).zero_().scatter_(-1, opt_actions,1.0)
         
         y_opt_direct = torch.cat((y_opt,y_direct))
-        if not eps_per_action:
-            
-            y_opt_direct = utils.use_gpu(y_opt_direct) *(1.0/self.eps_grad)
-        else:
-            """
-            opt_rewrds = get_future_reward_per_action(t_opt.node.rewards_list,self.discount)
-            #opt_rewrds = torch.ones_like(opt_rewrds)
-            direct_rewrds = get_future_reward_per_action(t_direct.node.rewards_list,self.discount)
-            epsilon_per_action = 1.0/torch.cat((opt_rewrds,direct_rewrds))
-            #print(epsilon_per_action)
-            #y_opt_direct = utils.use_gpu(y_opt_direct) *(1.0/epsilon_per_action)
-            """
-            yd=y_direct.size(0)
-            yo=y_opt.size(0)
-            t=int(torch.Tensor(1).random_(0,yd).item())
-            opt_eps = eps_for_suffix_or_prefix(yo,suffix = False,t=yd) #torch.ones(y_opt.size(0))
-            dir_eps = torch.ones(yd) #eps_for_suffix_or_prefix(yd,suffix = True,t=t)
-            epsilon_per_action = torch.cat((opt_eps,dir_eps)).view(-1,1) *(1.0/self.eps_grad)
-            #print (epsilon_per_action.size(),y_opt_direct.size())
-            y_opt_direct = utils.use_gpu(y_opt_direct) *(epsilon_per_action)
-        
-            
+        y_opt_direct = utils.use_gpu(y_opt_direct) *(1.0/self.eps_grad)
         policy_loss = torch.sum(y_opt_direct*phi)
         return policy_loss
-    def direct_optimization_loss_new(self,t_opt,t_direct, normelized_phi = False):
-        policy_loss = 0
-        if t_direct.node.objective > t_opt.node.objective:
-            opt,improvement = t_opt,t_direct
-        else:
-            opt,improvement = t_direct,t_direct
-            
-        policy_loss += self.get_one_side_loss(improvement,is_direct=True)
-        if not normelized_phi:
-            policy_loss += self.get_one_side_loss(opt,is_direct=False)
-        return policy_loss
-
-    def direct_cross_entropy_loss(self,t_opt,t_direct,final_trajectories,frac = 0.05):
-        end = math.ceil(len(final_trajectories)*frac)
-        direct_list = sorted(final_trajectories,key=lambda x: x.gumbel+self.eps_reward*x.reward, reverse=True)
-        opt_list = sorted(final_trajectories,key=lambda x: x.gumbel, reverse=True)
-        #direct_list = final_trajectories[len(final_trajectories)//2:]
-
-        #print ('len(final_trajectories): {}, len(direct list): {}, len(opt list): {} '.format(len(final_trajectories), len(direct_list), len(opt_list)))
-        ce_loss = 0
-        for t in direct_list[:end]:
-            ce_loss += self.get_one_side_loss(t,is_direct=True)
-            
-        for t in opt_list[:end]:
-            ce_loss += self.get_one_side_loss(t_opt,is_direct=False)
-        return ce_loss
 
     def cross_entropy_loss(self,final_trajectories, elite_frac = 0.05):
-    
         final_trajectories.sort(key=lambda x: x.reward, reverse=True)
         end = math.ceil(len(final_trajectories)*elite_frac)
         print ('len(final_trajectories): ',len(final_trajectories[:end]))
@@ -524,7 +478,7 @@ class DirectAstar(MinigridRL):
         episode=0
         
         sampling = self.sample_trajectories if self.independent_samplimg else self.sample_t_opt_and_search_for_t_direct
-        while count_interactions < self.max_interactions*num_episodes: #total_interactions: #
+        while count_interactions < self.max_interactions*num_episodes: #total_interactions:
             self.env.seed(self.seed)
             episode+=1
             
@@ -535,7 +489,6 @@ class DirectAstar(MinigridRL):
                 self.policy.train()
                 if self.optimization_method == 'direct':
                     policy_loss = self.direct_optimization_loss(t_opt, t_direct)
-                    #policy_loss = self.direct_cross_entropy_loss(t_opt,t_direct,final_trajectories,frac = 0.05)
                 elif self.optimization_method == 'CE':
                     policy_loss = self.cross_entropy_loss(final_trajectories, elite_frac = 0.05)
                     
@@ -545,13 +498,10 @@ class DirectAstar(MinigridRL):
                 self.optimizer.step()
 
             interactions.append(num_interactions)
-            #opt_reward,suc = self.run_episode(t_opt.actions,seed)
-            #success += suc
-            #self.eps_grad = self.eps_grad*0.9999
+
             opt_reward = t_opt.reward
             direct_reward=t_direct.reward
             print ('opt reward: {:.3f}, success: {}, length: {}, priority: {:.3f}, objective: {:.3f}'.format(opt_reward, t_opt.status, len(t_opt.actions),t_opt.node.priority,t_opt.node.objective))
-            #direct_reward,suc = self.run_episode(t_direct.actions,seed)
             print ('direct reward: {:.3f}, success: {}, length: {}, priority: {:.3f}, objective: {:.3f}'.format(direct_reward,t_direct.status, len(t_direct.actions),t_direct.node.priority,t_direct.node.objective))
             
             to_plot_opt.append((count_interactions+len(t_opt.actions),opt_reward))
@@ -565,8 +515,8 @@ class DirectAstar(MinigridRL):
             self.seed+=1
             if episode % 20 == 1:
                 self.save_checkpoint()
+            
         self.save_checkpoint()
-
         self.log['interactions']=interactions
         self.log['num_candidates'] = candidates
         self.log['rewards_opt_direct'] = rewards_opt_direct
@@ -608,10 +558,7 @@ class DirectAstar(MinigridRL):
         self.log['direct_obj_of_candidates']=direct_obj_of_candidates_alphas
         self.log['direct_priority_of_candidates']=direct_priority_of_candidates_alphas
         self.break_on_goal = True
-            
-            
-
-    
+        
     def play(self,sample_opt = True,seed=1234,inarow=True,auto=True):
         self.seed = seed
         def resetEnv(seed):
