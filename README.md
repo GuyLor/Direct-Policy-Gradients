@@ -1,4 +1,4 @@
-# reinforcement_learning - Astar sampling and direct optimization
+# Direct Policy Gradients - RL with A* sampling and direct optimization
 
 python3 -m venv direct_rl
 
@@ -12,6 +12,10 @@ pip3 install -r requirements.txt
 to train from scratch:
   python run.py --train
 
-to play with a trained model:
-  python run.py --play --load_path policy_state_dicts_multiroom.pkl
+to play with a trained model after training:
+  python run.py --train --play 
+
+save and/or load the model after training:
+  python run.py --train --play --save_path my_policy_model.pkl --load_path my_policy_model.pkl
+
 

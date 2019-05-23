@@ -1,7 +1,5 @@
 from scripts.direct_astar import DirectAstar
 from scripts.reinforce import Reinforce
-from scripts.reinforce_baseline import ReinforceBaseline
-#from scripts.search_cross_entropy import CrossEntropyMethod
 
 from scripts.policy_model import Checkpoint
 import argparse
@@ -47,7 +45,7 @@ parser.add_argument('--eps_grad', type=float, default=1.0,
                     help='gradient = 1/eps_grad * [grad(t_opt) - grad(t_direct)]')
 
 parser.add_argument('--discount', type=float, default=0.999,
-                    help='it is better to leave the discount factor 1 because t_direct is shorter then t_opt')
+                    help='rewards discount factor')
 
 parser.add_argument('--alpha', type=float, default=0.2,
                     help='priority: max-gumbel + return + alpha*upper_bound')
@@ -64,8 +62,8 @@ parser.add_argument('--max_interactions', type=float, default=3000,
 parser.add_argument('--max_search_time', type=float, default=30,
                     help='max time in seconds of one t_direct search (priority queue) ')
 
-parser.add_argument('--keep_searching',action='store_true',
-                    help='keep searching for t_direct even if priority(t_direct)>priority(t_opt)')
+parser.add_argument('--early_stop',action='store_true',
+                    help='stop t_direct search if priority(t_direct)>priority(t_opt)')
 
 parser.add_argument('--mixed_search_strategy',action='store_true',
                     help='for half interactions search in a BFS manner and the rest in a DFS (if dfs_like is true, the order is changing) ')
@@ -100,7 +98,8 @@ def main():
                     mixed_search_strategy = args.mixed_search_strategy,
                     dfs_like=args.dfs_like,
                     max_search_time=args.max_search_time,
-                    keep_searching=args.keep_searching)
+                    keep_searching= not args.early_stop)
+
     if args.method == 'direct_astar':
         m.optimization_method = 'direct'
     
@@ -128,16 +127,16 @@ def main():
         m.train(num_episodes=args.episodes,seed=args.seed)
         m.collect_data_candidates_direct_returns()
         m.log['args'] = args
-        path = os.path.join('..','logs',args.log_path)
+        path = os.path.join('logs',args.log_path)
         torch.save(m.log, path)
 
     if args.train:
         m.train(num_episodes=args.episodes,seed=args.seed)
         m.log['args'] = args
-        path = os.path.join('..','logs',args.log_path)
+        path = os.path.join('logs',args.log_path)
         torch.save(m.log, path)
     if args.play:
-        m.play(seed = args.seed+9999,inarow=False,auto=False)
+        m.play(seed = args.seed+9999,inarow=True,auto=True)
 
 if __name__ == '__main__':
     main()

@@ -72,7 +72,7 @@ class Node:
             self.doors_togo = parent_doors_togo
 
         self.bound_reward_togo = self.get_bound_reward_togo()
-        self.upper_bound = self.get_upper_bound()
+        self.upper_bound = self.get_priority_alpha_upper_bound(1.0)
         self.priority = self.get_priority_alpha_upper_bound(self.alpha)
         self.objective = self.get_objective()
 
@@ -93,13 +93,11 @@ class Node:
     def get_priority_max_gumbel(self):
             return self.max_gumbel
 
-
     def get_priority_alpha_upper_bound(self,alpha):
         return self.max_gumbel + self.epsilon * (self.reward_so_far + alpha*self.bound_reward_togo)
 
     def get_upper_bound(self):
         return self.max_gumbel + self.epsilon * (self.reward_so_far + self.bound_reward_togo)
-
     
     def get_bound_reward_togo(self):
         next_timestep = self.t + 1
