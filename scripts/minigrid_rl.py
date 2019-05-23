@@ -18,6 +18,8 @@ class MinigridRL:
         self.num_actions=self.env.action_space.n
         self.max_interactions=max_interactions
         self.discount=discount
+        self.target_reward=100
+        
         policy = pm.Policy(self.num_actions)
         self.policy = utils.use_gpu(policy)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=0.001)
@@ -29,7 +31,7 @@ class MinigridRL:
             print('failed to load policy ',e)
             print ('trying again')
         self.map_actions = ['left','right','forward','pickup','drop','toggle','done']    
-    def run_episode(self,actions_list,seed,target_reward=100):
+    def run_episode(self,actions_list,seed):
         """Interacts with the environment given actions """
         rewards = 0
         done = False
@@ -38,7 +40,7 @@ class MinigridRL:
         state = self.env.reset()
         for action in actions_list:
             state, reward, done,info = self.env.step(action)
-            if done and reward == target_reward:
+            if done and reward == self.target_reward:
                 success = True
             rewards += reward
         return rewards,success

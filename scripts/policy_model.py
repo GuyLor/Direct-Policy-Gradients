@@ -31,11 +31,12 @@ class Policy(nn.Module):
         images = []
         directions = []
         for obs in batch_obs:
+        
             image = np.array([obs["image"]])
+            
             image = utils.use_gpu(torch.tensor(image,dtype=torch.float))
             x = torch.transpose(torch.transpose(image, 1, 3), 2, 3)
             images.append(x)
-            
             direction = torch.LongTensor([obs["direction"]]).unsqueeze(0)
             direction = torch.FloatTensor(direction.size(0),self.number_directions).zero_().scatter_(-1, direction,1.0)
             direction=utils.use_gpu(direction)
