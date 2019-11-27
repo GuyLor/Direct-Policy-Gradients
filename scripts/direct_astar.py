@@ -569,6 +569,6 @@ class DirectAstar(MinigridRL):
             
             self.seed+=1
             actions = resetEnv(self.seed)
-            super().play(actions,seed,auto=auto)
+            super().play(actions,self.seed,auto=auto)
             if not inarow:
                 break
