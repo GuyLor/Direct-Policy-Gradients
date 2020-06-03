@@ -6,12 +6,12 @@ Pytorch impelentation for MiniGrid and DeepSea experiments of the paper "Direct 
 
 ## Installation
 
-Create new virtualenv and install dependencies:
+clone repository, create new virtualenv and install dependencies:
 ```bash
+git clone https://github.com/GuyLor/reinforcement_learning.git
 python3 -m venv direct_rl
 source direct_rl/bin/activate
 cd reinforcment_learning
-source direct_rl/bin/activate
 pip3 install -r requirements.txt
 ```
 
