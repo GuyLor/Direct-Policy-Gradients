@@ -9,16 +9,16 @@ import scripts.utils as utils
 import scripts.policy_model as pm
 
 class MinigridRL:
-    def __init__(self,env_path,chekpoint,seed,max_steps=120,max_interactions=1000,discount = 0.99):
+    def __init__(self, env_path, chekpoint, seed, max_steps=120, max_interactions=1000, discount = 0.99):
         self.set_seed(seed)
-        self.env_path =env_path
-        self.max_steps=max_steps
+        self.env_path = env_path
+        self.max_steps = max_steps
         self.env = self.reset()
         
-        self.num_actions=self.env.action_space.n
-        self.max_interactions=max_interactions
-        self.discount=discount
-        self.target_reward=100
+        self.num_actions = self.env.action_space.n
+        self.max_interactions = max_interactions
+        self.discount = discount
+        self.target_reward = 100
         
         policy = pm.Policy(self.num_actions)
         self.policy = utils.use_gpu(policy)
@@ -29,8 +29,9 @@ class MinigridRL:
             self.load_checkpoint()
         except Exception as e:
             print('failed to load policy ',e)
-            print ('trying again')
-        self.map_actions = ['left','right','forward','pickup','drop','toggle','done']    
+            print('trying again')
+        self.map_actions = ['left','right','forward','pickup','drop','toggle','done']
+
     def run_episode(self,actions_list,seed):
         """Interacts with the environment given actions """
         rewards = 0
@@ -47,17 +48,21 @@ class MinigridRL:
             
     def train(self):
         pass
+
     def reset(self):
         env = gym.make(self.env_path)
         env.max_steps =self.max_steps
         return env
-    def set_seed(self,seed):
+
+    def set_seed(self, seed):
         np.random.seed(seed)
         torch.manual_seed(seed)
-    def load_checkpoint(self,filepath=None):
+
+    def load_checkpoint(self, filepath=None):
         if filepath is not None:
             self.cp.load_path = filepath
-        self.cp.load(self.policy,self.optimizer)
+        self.cp.load(self.policy, self.optimizer)
+
     def save_checkpoint(self,filepath=None):
         if filepath is not None:
             self.cp.save_path = filepath
@@ -70,6 +75,7 @@ class MinigridRL:
         done = False
         total_reward = 0
         it = iter(actions)
+
         def keyDownCb(keyName):
             nonlocal it,total_reward,done
             if keyName == 'ESCAPE':

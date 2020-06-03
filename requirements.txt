@@ -1,6 +1,7 @@
 torch
 gym
 jupyter
+tensorboard
 matplotlib
 JSAnimation
 PyQt5

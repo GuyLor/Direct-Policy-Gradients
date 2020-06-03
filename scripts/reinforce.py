@@ -12,6 +12,7 @@ class Reinforce(MinigridRL):
     def __init__(self,
                  env_path,
                  chekpoint,
+                 logger,
                  seed,
                  action_level=True,
                  max_steps=240,
@@ -28,6 +29,8 @@ class Reinforce(MinigridRL):
         self.alpha = 0.9
         self.return_base=0
         self.action_level = action_level
+        self.tb_logger = logger
+
     def select_action(self,state):
         #state = torch.from_numpy(state).float().unsqueeze(0)
         probs = self.policy([state])
@@ -47,16 +50,10 @@ class Reinforce(MinigridRL):
         
         
         rewards = torch.tensor(rewards)
-        """
-        rewards = rewards - self.return_base
-        if self.trial> 1/(1-self.alpha):
-            self.return_base = self.alpha * rewards + (1-self.alpha)*self.return_base
-        else:
-            self.return_base = self.return_base*(self.trial-1)/self.trial + rewards/self.trial
-        """
+
         
         #rewards = (rewards - rewards.mean())/(rewards.std() + 1.2e-7)       
-        
+        rewards = rewards - rewards.mean()
         for log_prob, reward in zip(self.saved_log_probs, rewards):
             if self.action_level:
                 policy_loss.append(-log_prob * reward)
@@ -82,15 +79,15 @@ class Reinforce(MinigridRL):
         total_interactions = 1e6
         avg_reward,avg_inter,suc_num= 0,0,0
         while count_interactions < self.max_interactions*num_episodes:
-            self.trial+=1
+            self.trial += 1
             
             self.env.seed(seed)
             state = self.env.reset()
-            actions=[]
+            actions = []
             
             done=False
             suc = False
-            t+=1
+            t += 1
             while not done:
 
                 action = self.select_action(state)
@@ -122,6 +119,7 @@ class Reinforce(MinigridRL):
                 avg_reward/=t
                 print ('reinforce reward train: {:.3f}, {} success out of {}'.format(avg_reward,suc_num,t))
                 to_plot_avg.append((count_interactions,avg_reward))
+                self.tb_logger.add_scalar('return', avg_reward, count_interactions)
                 seed+=1
                 self.episode +=1
                 t=0
@@ -131,7 +129,6 @@ class Reinforce(MinigridRL):
         
         self.log['to_plot'] = to_plot
         self.log['to_plot_avg'] = to_plot_avg
-        #self.log['to_plot100'] = to_plot100
         self.save_checkpoint()
 
     

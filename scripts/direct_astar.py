@@ -93,7 +93,7 @@ class Node:
     def get_priority_max_gumbel(self):
             return self.max_gumbel
 
-    def get_priority_alpha_upper_bound(self,alpha):
+    def get_priority_alpha_upper_bound(self, alpha):
         return self.max_gumbel + self.epsilon * (self.reward_so_far + alpha*self.bound_reward_togo)
 
     def get_upper_bound(self):
@@ -129,6 +129,7 @@ class DirectAstar(MinigridRL):
     def __init__(self,
                  env_path,
                  chekpoint,
+                 logger,
                  seed,
                  independent_sampling = False,
                  keep_searching = False,
@@ -142,7 +143,7 @@ class DirectAstar(MinigridRL):
                  dfs_like=False,
                  eps_grad=1.0,
                  eps_reward=3.0):
-        super().__init__(env_path,chekpoint,seed,max_steps,max_interactions,discount)
+        super().__init__(env_path, chekpoint,seed,max_steps,max_interactions,discount)
         
         self.max_search_time=max_search_time
         self.max_interactions = max_interactions
@@ -157,8 +158,9 @@ class DirectAstar(MinigridRL):
         Node.discount = self.discount
         Node.alpha = self.alpha[0]
         self.break_on_goal = True
+        self.tb_logger = logger
         # Node.doors_togo = len(self.env.rooms)-1
-        self.max_interactions = self.max_steps*30
+        #self.max_interactions = self.max_steps*30
         self.keep_searching = keep_searching # if true, keep searching for t_direct even if priority(t_direct)>priority(t_opt)
         self.optimization_method = optimization_method
         self.log['priority_func'] = inspect.getsource(Node)
@@ -406,20 +408,21 @@ class DirectAstar(MinigridRL):
                 else:
                     heapq.heappush(queue,other_children)
         if not inference:
-            print ('pruned branches: {}, t_direct candidates: {}, nodes left in queue: {}, num interactions: {} '.format(prune_count,len(final_trajectories), len(queue),num_interactions))
+            print('pruned branches: {}, t_direct candidates: {}, nodes left in queue: {}, num interactions: {} '\
+                  .format(prune_count, len(final_trajectories), len(queue), num_interactions))
 
         return t_opt, t_direct,final_trajectories,num_interactions
         
     def get_one_side_loss(self,t,is_direct):
         states  = t.states[:-1]
-        actions = torch.LongTensor(t.actions).view(-1,1)
+        actions = torch.Tensor(t.actions).view(-1,1).long()
         
         phi = self.policy(states) # gets the logits so the network will calculates weights gradients
         
         if is_direct:
-            y = -torch.FloatTensor(actions.size(0),phi.size(1)).zero_().scatter_(-1,actions,1.0)
+            y = -torch.Tensor(actions.size(0),phi.size(1)).zero_().scatter_(-1,actions,1.0)
         else:
-            y =  torch.FloatTensor(actions.size(0),phi.size(1)).zero_().scatter_(-1,actions,1.0)
+            y =  torch.Tensor(actions.size(0),phi.size(1)).zero_().scatter_(-1,actions,1.0)
         
         y_opt_direct = utils.use_gpu(y)
         policy_loss = torch.sum(y_opt_direct*phi)/self.eps_grad
@@ -490,7 +493,7 @@ class DirectAstar(MinigridRL):
                 elif self.optimization_method == 'CE':
                     policy_loss = self.cross_entropy_loss(final_trajectories, elite_frac = 0.05)
                     
-                print(i,policy_loss)
+                print(i, policy_loss)
                 self.optimizer.zero_grad()
                 policy_loss.backward()
                 self.optimizer.step()
@@ -499,30 +502,36 @@ class DirectAstar(MinigridRL):
 
             opt_reward = t_opt.reward
             direct_reward=t_direct.reward
-            print ('opt reward: {:.3f}, success: {}, length: {}, priority: {:.3f}, objective: {:.3f}'.format(opt_reward, t_opt.status, len(t_opt.actions),t_opt.node.priority,t_opt.node.objective))
-            print ('direct reward: {:.3f}, success: {}, length: {}, priority: {:.3f}, objective: {:.3f}'.format(direct_reward,t_direct.status, len(t_direct.actions),t_direct.node.priority,t_direct.node.objective))
-            
-            to_plot_opt.append((count_interactions+len(t_opt.actions),opt_reward))
-            to_plot_direct.append((count_interactions+num_interactions,direct_reward))
+            print('opt reward: {:.3f}, success: {}, length: {}, priority: {:.3f}, objective: {:.3f}'\
+                  .format(opt_reward, t_opt.status, len(t_opt.actions), t_opt.node.priority,t_opt.node.objective))
+            print('direct reward: {:.3f}, success: {}, length: {}, priority: {:.3f}, objective: {:.3f}'\
+                  .format(direct_reward,t_direct.status, len(t_direct.actions), t_direct.node.priority,t_direct.node.objective))
+
+
+            self.tb_logger.add_scalars('return/interactions', {'opt': opt_reward,
+                                                               'direct': direct_reward}, count_interactions+num_interactions)
+
+            to_plot_opt.append((count_interactions+len(t_opt.actions), opt_reward))
+            to_plot_direct.append((count_interactions+num_interactions, direct_reward))
             candidates.append(len(final_trajectories))
-            rewards_opt_direct.append((opt_reward,direct_reward))
-            lengths_opt_direct.append((len(t_opt.actions),len(t_direct.actions)))
-            priority_opt_direct.append((t_opt.node.priority,t_direct.node.priority))
+            rewards_opt_direct.append((opt_reward, direct_reward))
+            lengths_opt_direct.append((len(t_opt.actions), len(t_direct.actions)))
+            priority_opt_direct.append((t_opt.node.priority, t_direct.node.priority))
             sys.stdout.flush()
-            count_interactions+=num_interactions
-            self.seed+=1
+            count_interactions += num_interactions
+            self.seed += 1
             if episode % 20 == 1:
                 self.save_checkpoint()
             
         self.save_checkpoint()
-        self.log['interactions']=interactions
+        self.log['interactions'] = interactions
         self.log['num_candidates'] = candidates
         self.log['rewards_opt_direct'] = rewards_opt_direct
         self.log['lengths_opt_direct'] = lengths_opt_direct
         self.log['priority_opt_direct'] = priority_opt_direct
         
-        self.log['to_plot_opt'] =to_plot_opt
-        self.log['to_plot_direct'] =to_plot_direct
+        self.log['to_plot_opt'] = to_plot_opt
+        self.log['to_plot_direct'] = to_plot_direct
         
         return rewards_opt_direct
         
@@ -569,6 +578,8 @@ class DirectAstar(MinigridRL):
             
             self.seed+=1
             actions = resetEnv(self.seed)
-            super().play(actions,seed,auto=auto)
+            super().play(actions,self.seed,auto=auto)
             if not inarow:
                 break
+
+
