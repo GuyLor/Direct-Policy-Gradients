@@ -2,7 +2,7 @@
 
 # Direct Policy Gradients - RL with A* sampling and direct optimization
 
-Pytorch impelentation for MiniGrid and DeepSea experiments of the paper "Direct Policy Gradients: Direct Optimization of Policies in Discrete Action Spaces"
+Pytorch impelentation for MiniGrid and DeepSea experiments from the paper "Direct Policy Gradients: Direct Optimization of Policies in Discrete Action Spaces"
 
 ## Installation
 
